@@ -85,7 +85,7 @@ function effectivePreset(conv = currentConversation()) {
 document.querySelector('#app').innerHTML = `
   <div id="layout" class="sidebar-open">
     <aside id="sidebar" aria-label="Sidebar">
-      <div class="sidebar-header"><h1>Pulse</h1></div>
+      <div class="sidebar-header"><h1>pulse</h1><p>Minimal AI workspace</p></div>
       <nav class="sidebar-nav" aria-label="Primary">
         <button type="button" class="nav-item active" id="new-chat-btn">New chat</button>
         <button type="button" class="nav-item" id="settings-btn">Settings</button>
@@ -95,7 +95,7 @@ document.querySelector('#app').innerHTML = `
     <main id="chat-shell">
       <header id="chat-header">
         <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
-        <span class="chat-title">Pulse Assistant</span>
+        <span class="chat-title">Assistant</span>
         <div class="top-controls">
           <div id="mode-dropdown"></div>
           <div id="preset-dropdown"></div>
@@ -106,8 +106,8 @@ document.querySelector('#app').innerHTML = `
       <div id="chat-container">
         <div id="messages"></div>
         <div id="input-area">
-          <input type="text" id="user-input" placeholder="Type a message..." autofocus>
-          <button id="send-btn" class="ui-button ui-button-primary">Send</button>
+          <input type="text" id="user-input" placeholder="Ask anything…" autofocus>
+          <button id="send-btn" class="ui-button ui-button-primary">↵</button>
         </div>
       </div>
     </main>
