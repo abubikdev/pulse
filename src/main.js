@@ -1,24 +1,75 @@
-import './style.css'
-import javascriptLogo from './javascript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.js'
+// src/main.js
+import './style.css'; // Import your CSS
 
+// 1. Define and Inject HTML Structure
 document.querySelector('#app').innerHTML = `
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
-    </a>
-    <h1>Hello Vite!</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
+  <div id="chat-container">
+    <div id="messages"></div>
+    <div id="input-area">
+      <input type="text" id="user-input" placeholder="Type a message..." autofocus>
+      <button id="send-btn">Send</button>
     </div>
-    <p class="read-the-docs">
-      Click on the Vite logo to learn more
-    </p>
   </div>
-`
+`;
 
-setupCounter(document.querySelector('#counter'))
+const messageContainer = document.querySelector('#messages');
+const userInput = document.querySelector('#user-input');
+const sendBtn = document.querySelector('#send-btn');
+
+let chatHistory = []; // Keeps track of conversation memory
+
+// 2. The AI Chat Logic
+async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    // Add User Message to UI & History
+    appendMessage('user', text);
+    chatHistory.push({ role: 'user', content: text });
+    userInput.value = '';
+
+    // Create placeholder for AI response
+    const aiMessageDiv = appendMessage('assistant', '');
+    let fullAiResponse = "";
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: chatHistory })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            // Vercel AI SDK prefix removal (strips "0:..." formatting)
+            const cleanChunk = chunk.replace(/^\d+:"/gm, '').replace(/"$/gm, '').replace(/\\n/g, '\n');
+            
+            fullAiResponse += cleanChunk;
+            aiMessageDiv.innerText = fullAiResponse; 
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        chatHistory.push({ role: 'assistant', content: fullAiResponse });
+
+    } catch (error) {
+        aiMessageDiv.innerText = "Error: Could not connect to the AI function.";
+    }
+}
+
+function appendMessage(role, text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}`;
+    msgDiv.innerText = text;
+    messageContainer.appendChild(msgDiv);
+    return msgDiv;
+}
+
+// 3. Event Listeners
+sendBtn.addEventListener('click', sendMessage);
+userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
