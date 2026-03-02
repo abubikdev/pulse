@@ -15,27 +15,64 @@ function jsonResponse(status, payload) {
   });
 }
 
-export default async function handler(req) {
-  if (req.method !== "POST") {
+function parseNodeBody(req) {
+  if (req?.body && typeof req.body === "object") return req.body;
+  if (typeof req?.body === "string" && req.body.length > 0) {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export default async function handler(req, res) {
+  const isNodeRuntime = typeof res !== "undefined";
+  const method = req?.method;
+
+  if (method !== "POST") {
+    if (isNodeRuntime) {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
     return jsonResponse(405, { error: "Method not allowed" });
   }
 
   const apiKey = sanitizeEnv(process.env.AI_GATEWAY_API_KEY);
   if (!apiKey) {
-    return jsonResponse(500, {
-      error: "Server misconfiguration: Missing AI_GATEWAY_API_KEY",
-    });
+    const payload = { error: "Server misconfiguration: Missing AI_GATEWAY_API_KEY" };
+    if (isNodeRuntime) {
+      res.status(500).json(payload);
+      return;
+    }
+    return jsonResponse(500, payload);
   }
 
   let body;
-  try {
-    body = await req.json();
-  } catch {
-    return jsonResponse(400, { error: "Invalid JSON body" });
+  if (typeof req?.json === "function") {
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse(400, { error: "Invalid JSON body" });
+    }
+  } else {
+    body = parseNodeBody(req);
+    if (!body) {
+      if (isNodeRuntime) {
+        res.status(400).json({ error: "Invalid JSON body" });
+        return;
+      }
+      return jsonResponse(400, { error: "Invalid JSON body" });
+    }
   }
 
   const { messages } = body ?? {};
   if (!Array.isArray(messages)) {
+    if (isNodeRuntime) {
+      res.status(400).json({ error: "`messages` must be an array" });
+      return;
+    }
     return jsonResponse(400, { error: "`messages` must be an array" });
   }
 
@@ -43,13 +80,29 @@ export default async function handler(req) {
   const model = sanitizeEnv(process.env.AI_GATEWAY_MODEL) || "openai/gpt-4.1";
 
   try {
-    const result = await streamText({
+    const result = streamText({
       model: gateway(model),
       messages,
     });
+
+    if (isNodeRuntime) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+
+      for await (const textPart of result.textStream) {
+        res.write(textPart);
+      }
+      res.end();
+      return;
+    }
+
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("Chat handler failed:", error);
+    if (isNodeRuntime) {
+      res.status(500).json({ error: "Failed to stream chat response" });
+      return;
+    }
     return jsonResponse(500, { error: "Failed to stream chat response" });
   }
 }
