@@ -29,4 +29,7 @@ async function main() {
   console.log("Token usage:", await result.usage);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

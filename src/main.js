@@ -20,46 +20,55 @@ let chatHistory = []; // Keeps track of conversation memory
 
 // 2. The AI Chat Logic
 async function sendMessage() {
-    const text = userInput.value.trim();
-    if (!text) return;
+  const text = userInput.value.trim();
+  if (!text) return;
 
-    // Add User Message to UI & History
-    appendMessage('user', text);
-    chatHistory.push({ role: 'user', content: text });
-    userInput.value = '';
+  // Add User Message to UI & History
+  appendMessage('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  userInput.value = '';
 
-    // Create placeholder for AI response
-    const aiMessageDiv = appendMessage('assistant', '');
-    let fullAiResponse = "";
+  // Create placeholder for AI response
+  const aiMessageDiv = appendMessage('assistant', '');
+  let fullAiResponse = '';
 
-    try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: chatHistory })
-        });
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory })
+    });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            // Vercel AI SDK prefix removal (strips "0:..." formatting)
-            const cleanChunk = chunk.replace(/^\d+:"/gm, '').replace(/"$/gm, '').replace(/\\n/g, '\n');
-            
-            fullAiResponse += cleanChunk;
-            aiMessageDiv.innerText = fullAiResponse; 
-            messageContainer.scrollTop = messageContainer.scrollHeight;
-        }
-
-        chatHistory.push({ role: 'assistant', content: fullAiResponse });
-
-    } catch (error) {
-        aiMessageDiv.innerText = "Error: Could not connect to the AI function.";
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}`;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorPayload = await response.json().catch(() => null);
+        if (errorPayload?.error) message = errorPayload.error;
+      }
+      throw new Error(message);
     }
+
+    if (!response.body) {
+      throw new Error('Empty response body');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      fullAiResponse += decoder.decode(value, { stream: true });
+      aiMessageDiv.innerText = fullAiResponse;
+      messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    chatHistory.push({ role: 'assistant', content: fullAiResponse });
+  } catch (error) {
+    aiMessageDiv.innerText = `Error: ${error.message || 'Could not connect to the AI function.'}`;
+  }
 }
 
 function appendMessage(role, text) {
