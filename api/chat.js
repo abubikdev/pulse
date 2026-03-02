@@ -1,7 +1,7 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 
-export const config = { runtime: "edge" };
+export const config = { runtime: "nodejs" };
 
 function sanitizeEnv(value) {
   if (typeof value !== "string") return "";
