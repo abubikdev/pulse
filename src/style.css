@@ -22,20 +22,16 @@ body {
 
 #app {
   width: 100%;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 24px 12px;
+  height: 100vh;
 }
 
 #chat-container {
-  width: min(860px, 100%);
-  height: calc(100vh - 48px);
-  max-height: 920px;
+  width: 100%;
+  height: 100%;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.06);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -173,15 +169,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  #app {
-    padding: 8px;
-  }
-
-  #chat-container {
-    height: calc(100vh - 16px);
-    border-radius: 14px;
-  }
-
   #messages {
     padding: 14px;
     gap: 10px;
