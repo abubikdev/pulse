@@ -1,5 +1,7 @@
 // src/main.js
 import './style.css'; // Import your CSS
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 // 1. Define and Inject HTML Structure
 document.querySelector('#app').innerHTML = `
@@ -61,22 +63,33 @@ async function sendMessage() {
       if (done) break;
 
       fullAiResponse += decoder.decode(value, { stream: true });
-      aiMessageDiv.innerText = fullAiResponse;
+      renderMarkdown(aiMessageDiv, fullAiResponse);
       messageContainer.scrollTop = messageContainer.scrollHeight;
     }
 
     chatHistory.push({ role: 'assistant', content: fullAiResponse });
   } catch (error) {
-    aiMessageDiv.innerText = `Error: ${error.message || 'Could not connect to the AI function.'}`;
+    aiMessageDiv.textContent = `Error: ${error.message || 'Could not connect to the AI function.'}`;
   }
 }
 
 function appendMessage(role, text) {
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${role}`;
-    msgDiv.innerText = text;
-    messageContainer.appendChild(msgDiv);
-    return msgDiv;
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `message ${role}`;
+
+  if (role === 'assistant') {
+    renderMarkdown(msgDiv, text);
+  } else {
+    msgDiv.textContent = text;
+  }
+
+  messageContainer.appendChild(msgDiv);
+  return msgDiv;
+}
+
+function renderMarkdown(element, markdown) {
+  const rawHtml = marked.parse(markdown || '');
+  element.innerHTML = DOMPurify.sanitize(rawHtml);
 }
 
 // 3. Event Listeners
