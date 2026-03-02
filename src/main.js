@@ -97,17 +97,17 @@ document.querySelector('#app').innerHTML = `
         <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
         <span class="chat-title">Pulse Assistant</span>
         <div class="top-controls">
-          <select id="mode-select"></select>
-          <select id="preset-select"></select>
+          <div id="mode-dropdown"></div>
+          <div id="preset-dropdown"></div>
           <div id="usage-indicator"></div>
-          <button type="button" id="open-drafts">Drafts</button>
+          <button type="button" id="open-drafts" class="ui-button ui-button-secondary">Drafts</button>
         </div>
       </header>
       <div id="chat-container">
         <div id="messages"></div>
         <div id="input-area">
           <input type="text" id="user-input" placeholder="Type a message..." autofocus>
-          <button id="send-btn">Send</button>
+          <button id="send-btn" class="ui-button ui-button-primary">Send</button>
         </div>
       </div>
     </main>
@@ -125,10 +125,35 @@ const layout = document.querySelector('#layout');
 const messageContainer = document.querySelector('#messages');
 const userInput = document.querySelector('#user-input');
 const sendBtn = document.querySelector('#send-btn');
-const modeSelect = document.querySelector('#mode-select');
-const presetSelect = document.querySelector('#preset-select');
+const modeDropdownHost = document.querySelector('#mode-dropdown');
+const presetDropdownHost = document.querySelector('#preset-dropdown');
 const modalRoot = document.querySelector('#modal-root');
 const toolbar = document.querySelector('#selection-toolbar');
+let openDropdown = null;
+
+function escapeHtml(text) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function renderDropdown(host, { id, label, selectedLabel, options }) {
+  host.innerHTML = `
+    <div class="ui-dropdown" data-dropdown="${id}">
+      <button type="button" class="ui-button ui-button-secondary ui-dropdown-trigger" data-dropdown-trigger="${id}" aria-haspopup="listbox" aria-expanded="false">
+        <span>${escapeHtml(label)}:</span>
+        <strong>${escapeHtml(selectedLabel)}</strong>
+        <span aria-hidden="true">▾</span>
+      </button>
+      <div class="ui-dropdown-menu hidden" data-dropdown-menu="${id}" role="listbox" aria-label="${escapeHtml(label)} options">
+        ${options.map((option) => `<button type="button" class="ui-dropdown-item ${option.selected ? 'active' : ''}" data-dropdown-value="${id}" data-value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`).join('')}
+      </div>
+    </div>
+  `;
+}
 
 function syncSidebarA11y() {
   const sidebarToggle = document.querySelector('#sidebar-toggle');
@@ -447,8 +472,18 @@ function renderPinned() {
 
 function renderSelectors() {
   const conv = currentConversation();
-  modeSelect.innerHTML = `<option value="">Global mode (${modeLabels[appState.global.defaultMode]})</option>${MODES.map((m) => `<option value="${m}" ${conv.mode === m ? 'selected' : ''}>${modeLabels[m]}</option>`).join('')}`;
-  presetSelect.innerHTML = `<option value="">Global preset (${appState.global.outputPreset})</option>${PRESETS.map((p) => `<option value="${p}" ${conv.outputPreset === p ? 'selected' : ''}>${p}</option>`).join('')}`;
+  renderDropdown(modeDropdownHost, {
+    id: 'mode',
+    label: 'Mode',
+    selectedLabel: conv.mode ? modeLabels[conv.mode] : `Global (${modeLabels[appState.global.defaultMode]})`,
+    options: [{ value: '', label: `Global (${modeLabels[appState.global.defaultMode]})`, selected: !conv.mode }, ...MODES.map((m) => ({ value: m, label: modeLabels[m], selected: conv.mode === m }))],
+  });
+  renderDropdown(presetDropdownHost, {
+    id: 'preset',
+    label: 'Preset',
+    selectedLabel: conv.outputPreset || `Global (${appState.global.outputPreset})`,
+    options: [{ value: '', label: `Global (${appState.global.outputPreset})`, selected: !conv.outputPreset }, ...PRESETS.map((p) => ({ value: p, label: p, selected: conv.outputPreset === p }))],
+  });
 }
 
 function renderDrafts() {
@@ -587,17 +622,41 @@ function handleGlobalClick(e) {
       saveState(); renderUsage();
     } });
   }
+  if (t.matches('[data-dropdown-trigger]')) {
+    const id = t.dataset.dropdownTrigger;
+    const menu = document.querySelector(`[data-dropdown-menu="${id}"]`);
+    const nextOpen = menu.classList.contains('hidden');
+    document.querySelectorAll('[data-dropdown-menu]').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('[data-dropdown-trigger]').forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    if (nextOpen) {
+      menu.classList.remove('hidden');
+      t.setAttribute('aria-expanded', 'true');
+      openDropdown = id;
+    } else openDropdown = null;
+  }
+  if (t.matches('[data-dropdown-value="mode"]')) {
+    currentConversation().mode = t.dataset.value || null;
+    saveState();
+    renderSelectors();
+    openDropdown = null;
+  }
+  if (t.matches('[data-dropdown-value="preset"]')) {
+    currentConversation().outputPreset = t.dataset.value || null;
+    saveState();
+    renderSelectors();
+    openDropdown = null;
+  }
 }
 
 document.addEventListener('click', handleGlobalClick);
-
-modeSelect.addEventListener('change', () => {
-  currentConversation().mode = modeSelect.value || null;
-  saveState();
-});
-presetSelect.addEventListener('change', () => {
-  currentConversation().outputPreset = presetSelect.value || null;
-  saveState();
+document.addEventListener('click', (e) => {
+  if (!openDropdown) return;
+  const clickedInside = e.target.closest('[data-dropdown]');
+  if (!clickedInside) {
+    document.querySelectorAll('[data-dropdown-menu]').forEach((m) => m.classList.add('hidden'));
+    document.querySelectorAll('[data-dropdown-trigger]').forEach((trigger) => trigger.setAttribute('aria-expanded', 'false'));
+    openDropdown = null;
+  }
 });
 
 sendBtn.addEventListener('click', sendMessage);
