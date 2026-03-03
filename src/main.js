@@ -4,16 +4,25 @@ import DOMPurify from 'dompurify';
 
 const STORAGE_KEY = 'pulse-app-state-v2';
 const STATE_VERSION = 2;
+// Model constants used by selectors and prompt builders.
+// Edit example: add a new mode like `review` in `MODES`, then add a matching label in
+// `modeLabels` and prompt text in `modePrompt()` so it appears in the UI and behaves consistently.
 const MODES = ['work', 'study', 'planning', 'creative'];
 const PRESETS = ['ultra concise', 'balanced', 'detailed', 'technical', 'for client'];
 const MEMORY_TYPES = ['preference', 'project', 'task', 'fact', 'note'];
 const MEMORY_PRIORITY = { preference: 1, project: 2, task: 3, fact: 4, note: 5 };
 const modeLabels = { work: 'Work', study: 'Study', planning: 'Planning', creative: 'Creative' };
 
+// Generates short stable-ish client ids for conversations/messages.
+// Edit example: replace the date/random strategy with `crypto.randomUUID()` if you prefer
+// UUIDs and do not rely on the current readable prefix format.
 function uid(prefix = 'id') {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Creates the full persisted application model for a brand-new user/session.
+// Edit example: change `monthlyLimitTokens` to adjust usage defaults or add new keys under
+// `global` and initialize them here so old/new sessions both have predictable values.
 function defaultState() {
   const now = new Date();
   const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
@@ -40,6 +49,9 @@ function defaultState() {
   };
 }
 
+// Backfills older saved states into the current model shape (v2) without losing user data.
+// Edit example: when adding `global.theme`, set `parsed.global.theme = parsed.global.theme || 'dark'`
+// here to safely migrate existing localStorage entries.
 function migrateState(parsed) {
   if (!parsed || typeof parsed !== 'object') return defaultState();
   if (!parsed.version) return { ...defaultState(), ...parsed, version: STATE_VERSION };
@@ -54,6 +66,9 @@ function migrateState(parsed) {
   return parsed;
 }
 
+// Loads the model from localStorage and falls back to defaults when storage is missing/corrupt.
+// Edit example: swap `localStorage` with another storage adapter by changing this function and
+// `saveState()` together.
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -67,10 +82,15 @@ function loadState() {
 let appState = loadState();
 let selectionContext = null;
 
+// Persists the current in-memory model after user actions.
+// Edit example: debounce this call if you add high-frequency updates (e.g., per-keystroke drafts)
+// to reduce storage writes while keeping UX smooth.
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 }
 
+// Resolves derived conversation settings using conversation overrides first, then global defaults.
+// Edit example: add a third fallback source (like team settings) by extending these helpers only.
 function currentConversation() {
   return appState.conversations.find((c) => c.id === appState.currentConversationId) || appState.conversations[0];
 }
@@ -84,6 +104,9 @@ function effectivePreset(conv = currentConversation()) {
 }
 
 document.querySelector('#app').innerHTML = `
+  <!-- Primary UI shell: sidebar, chat workspace, utility panels, and modal hosts.
+       Edit example: to add a "Templates" button, place it in `.menu-actions` and wire it in
+       event listeners near the bottom of this file for behavior + state updates. -->
   <div id="layout">
     <aside id="sidebar" aria-label="Sidebar">
       <div class="sidebar-header"><h1>pulse</h1><p>Minimal AI workspace</p></div>
@@ -152,6 +175,8 @@ function escapeHtml(text) {
     .replaceAll("'", '&#39;');
 }
 
+// Reusable dropdown UI primitive used for mode/preset selectors.
+// Edit example: add icons by extending option objects with `icon` and rendering it in each item.
 function renderDropdown(host, { id, label, selectedLabel, options }) {
   host.innerHTML = `
     <div class="ui-dropdown" data-dropdown="${id}">
@@ -169,6 +194,8 @@ function renderDropdown(host, { id, label, selectedLabel, options }) {
 
 function syncSidebarA11y() {}
 
+// Compiles structured memory snippets into a compact context block for prompting.
+// Edit example: reduce `maxChars` when latency/token cost is more important than recall depth.
 function compileMemory(maxChars = 1800) {
   const enabled = appState.global.memoryItems.filter((m) => m.enabled);
   const sorted = [...enabled].sort((a, b) => (MEMORY_PRIORITY[a.type] || 9) - (MEMORY_PRIORITY[b.type] || 9));
@@ -187,6 +214,8 @@ function compiledPinnedContext(maxChars = 1500) {
   return lines;
 }
 
+// Prompt style presets: each returns instruction text tuned for a response mode.
+// Edit example: change the "technical" preset to require numbered steps for implementation guides.
 function modePrompt(mode) {
   return {
     work: 'Be concise, action-oriented, and practical.',
@@ -206,6 +235,8 @@ function presetPrompt(preset) {
   }[preset];
 }
 
+// Parses assistant output into semantic sections (summary, steps, checks, etc.) for richer UI.
+// Edit example: add a new section marker like `Risks:` to show risk blocks in their own container.
 function parseStructuredSections(content) {
   const sections = [];
   const blocks = content.split(/\n(?=#{0,3}\s*(Summary|Details|Action Steps|Risks|Sources)\s*:?\s*$)/i);
@@ -238,6 +269,8 @@ function parseStructuredSections(content) {
   return sections;
 }
 
+// Heuristic defaults for section collapse state based on mode/preset.
+// Edit example: keep `checks` expanded in `work` mode by returning `false` for that combination.
 function sectionCollapsedDefault(kind, mode, preset) {
   if (kind === 'summary') return false;
   if (preset === 'ultra concise') return kind !== 'actionSteps';
@@ -246,6 +279,8 @@ function sectionCollapsedDefault(kind, mode, preset) {
   return true;
 }
 
+// Suggests quick follow-up actions shown under assistant messages.
+// Edit example: append a suggestion like "Convert to checklist" for planning-heavy conversations.
 function generateSuggestions(mode, preset, message) {
   const actionSteps = (message.structuredSections || []).find((s) => s.kind === 'actionSteps');
   const len = message.content.length;
@@ -261,6 +296,8 @@ function generateSuggestions(mode, preset, message) {
   return base.slice(0, 3).map((label) => ({ label, kind: label === 'Turn into tasks' ? 'edit' : 'prompt' }));
 }
 
+// Lightweight token estimation used for monthly budget feedback in the header.
+// Edit example: replace the 4-char heuristic with a tokenizer library if you need tighter accuracy.
 function updateUsage(promptText, completionText) {
   const usage = appState.global.usage;
   const now = new Date();
@@ -276,6 +313,8 @@ function updateUsage(promptText, completionText) {
   renderDeepThinkToggle();
 }
 
+// Builds system/developer context sent with each request (mode, preset, memory, pinning, toggles).
+// Edit example: prepend compliance instructions here if you need responses to follow stricter policy.
 function buildSystemMessages(conv) {
   const mode = effectiveMode(conv);
   const preset = effectivePreset(conv);
@@ -294,6 +333,8 @@ function buildSystemMessages(conv) {
   return messages;
 }
 
+// Adapts local conversation model into API payload shape consumed by `/api/chat`.
+// Edit example: include multimodal attachments by mapping them into extra message parts here.
 function makeConversationPayload(conv) {
   return [...buildSystemMessages(conv), ...conv.messages.map((m) => ({ role: m.role, content: m.content }))];
 }
@@ -331,6 +372,8 @@ function saveMessageToMemory(messageId, initialText = '') {
   });
 }
 
+// Modal factory used by quick actions (save memory, rewrite snippets, etc.).
+// Edit example: inject custom validation before `onConfirm` to block empty or malformed submissions.
 function openModal({ title, body, onConfirm }) {
   modalRoot.innerHTML = `<div class="modal-backdrop"><div class="modal"><h3>${title}</h3>${body}<div class="modal-actions"><button id="modal-cancel">Cancel</button><button id="modal-ok">Save</button></div></div></div>`;
   document.querySelector('#modal-cancel').onclick = () => (modalRoot.innerHTML = '');
@@ -340,6 +383,8 @@ function openModal({ title, body, onConfirm }) {
   };
 }
 
+// Applies editing operations to selected text with optional AI-assisted transformations.
+// Edit example: add an `action === 'shorten'` path that trims verbosity while preserving key facts.
 function runEditAction(action, selectedText, message) {
   const conv = currentConversation();
   const prompt = `Action: ${action}. Apply to selected text:\n${selectedText}`;
@@ -413,10 +458,14 @@ async function sendMessage() {
   renderMessages();
 }
 
+// Renders trusted markdown safely by sanitizing HTML first.
+// Edit example: allow additional safe tags by tuning DOMPurify config if formatting needs expand.
 function renderMarkdown(element, markdown) {
   element.innerHTML = DOMPurify.sanitize(marked.parse(markdown || ''));
 }
 
+// Extracts collapsible "thinking" blocks from markdown for optional reveal in the UI.
+// Edit example: support custom delimiters like `:::thinking` if your prompt format changes.
 function parseThinkingBlocks(markdown = '') {
   const blocks = [];
   const cleaned = markdown.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, (_, thought) => {
@@ -442,6 +491,8 @@ function copyText(text) {
   navigator.clipboard.writeText(text || '');
 }
 
+// Main message list renderer: paints user/assistant entries and action controls.
+// Edit example: show timestamps by adding a small metadata row using each message's `createdAt`.
 function renderMessages() {
   const conv = currentConversation();
   messageContainer.innerHTML = '';
@@ -478,6 +529,8 @@ function renderMessages() {
   });
 }
 
+// Side-panel renderers for long-lived context state.
+// Edit example: reorder memory chips by recency instead of `MEMORY_PRIORITY` for active projects.
 function renderMemory() {
   const host = document.querySelector('#memory-section');
   const grouped = MEMORY_TYPES.map((type) => {
@@ -713,6 +766,8 @@ toolbar.addEventListener('click', (e) => {
   toolbar.classList.add('hidden');
 });
 
+// Renders all interactive surfaces after state changes.
+// Edit example: split this into targeted render calls if performance tuning is needed later.
 function renderAll() {
   renderSelectors();
   renderMessages();

@@ -1,3 +1,6 @@
+/* Visual design tokens shared across the app.
+   Edit example: to introduce a softer dark theme, change --bg/--panel/--text-main
+   values here first, then tweak component-level overrides only if contrast needs refinement. */
 :root {
   --bg: #ffffff;
   --panel: #ffffff;
@@ -21,6 +24,9 @@ body {
 
 #app,
 #layout,
+/* Main chat canvas layout.
+   Edit example: increase horizontal breathing room by changing `padding` to `24px 32px 0`
+   for desktop-sized screens while keeping mobile overrides in the media query below. */
 #chat-shell { width: 100%; height: 100vh; }
 
 #layout { display: block; }
@@ -79,6 +85,9 @@ body {
   gap: 6px;
 }
 
+/* Reusable button style system for controls and actions.
+   Edit example: for a more pill aesthetic, raise `border-radius` to 999px and slightly
+   increase horizontal padding so buttons still feel balanced. */
 .ui-button {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -131,6 +140,8 @@ body {
   overflow: hidden;
 }
 
+/* Scrollable message timeline (core chat UI area).
+   Edit example: reduce `gap` from 20px to 14px for denser transcripts in research workflows. */
 #messages {
   flex: 1;
   overflow-y: auto;
@@ -219,6 +230,9 @@ body {
   font-weight: 600;
 }
 
+/* Composer shell where users type/send prompts.
+   Edit example: if you add an extra tool button, update `grid-template-columns` to
+   `auto auto 1fr auto` so spacing stays aligned. */
 #input-area {
   margin: 0 auto 14px;
   width: min(1240px, calc(100% - 20px));
@@ -302,6 +316,9 @@ body {
 
 .hidden { display: none !important; }
 
+/* Modal layer used for inline edit/save flows.
+   Edit example: lower backdrop opacity (e.g., 0.2) for a lighter feel, or increase modal
+   max width in `.modal` for forms that need more fields. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -359,6 +376,9 @@ body {
 .usage.warn .bar span { background: #d97706; }
 .usage.critical .bar span { background: #dc2626; }
 
+/* Mobile adaptations for compact screens.
+   Edit example: if text feels cramped on small phones, drop assistant font-size to 15px
+   only here so desktop readability remains unchanged. */
 @media (max-width: 900px) {
   #chat-shell { padding: 8px 10px 0; }
   .assistant { padding: 0 10px; }
