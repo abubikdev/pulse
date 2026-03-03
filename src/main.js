@@ -8,7 +8,6 @@ const MODES = ['work', 'study', 'planning', 'creative'];
 const PRESETS = ['ultra concise', 'balanced', 'detailed', 'technical', 'for client'];
 const MEMORY_TYPES = ['preference', 'project', 'task', 'fact', 'note'];
 const MEMORY_PRIORITY = { preference: 1, project: 2, task: 3, fact: 4, note: 5 };
-const STRUCTURED_KINDS = ['summary', 'details', 'actionSteps', 'risks', 'sources', 'custom'];
 const modeLabels = { work: 'Work', study: 'Study', planning: 'Planning', creative: 'Creative' };
 
 function uid(prefix = 'id') {
@@ -25,6 +24,7 @@ function defaultState() {
       defaultMode: 'work',
       outputPreset: 'balanced',
       showUsage: true,
+      deepThink: true,
       usage: {
         monthlyLimitTokens: 150000,
         usedTokens: 0,
@@ -46,6 +46,7 @@ function migrateState(parsed) {
   parsed.version = STATE_VERSION;
   parsed.global = parsed.global || defaultState().global;
   parsed.global.memoryItems = parsed.global.memoryItems || [];
+  parsed.global.deepThink = parsed.global.deepThink ?? true;
   parsed.global.pinnedContexts = parsed.global.pinnedContexts || [];
   parsed.global.drafts = parsed.global.drafts || [];
   parsed.conversations = Array.isArray(parsed.conversations) && parsed.conversations.length ? parsed.conversations : defaultState().conversations;
@@ -83,31 +84,39 @@ function effectivePreset(conv = currentConversation()) {
 }
 
 document.querySelector('#app').innerHTML = `
-  <div id="layout" class="sidebar-open">
+  <div id="layout">
     <aside id="sidebar" aria-label="Sidebar">
       <div class="sidebar-header"><h1>pulse</h1><p>Minimal AI workspace</p></div>
       <nav class="sidebar-nav" aria-label="Primary">
-        <button type="button" class="nav-item active" id="new-chat-btn">New chat</button>
-        <button type="button" class="nav-item" id="settings-btn">Settings</button>
+        <button type="button" class="nav-item active">New chat</button>
+        <button type="button" class="nav-item">Settings</button>
       </nav>
     </aside>
     <div id="mobile-overlay" aria-hidden="true"></div>
     <main id="chat-shell">
       <header id="chat-header">
-        <button id="sidebar-toggle" type="button" aria-label="Toggle sidebar" aria-expanded="false">☰</button>
-        <span class="chat-title">Assistant</span>
-        <div class="top-controls">
-          <div id="mode-dropdown"></div>
-          <div id="preset-dropdown"></div>
-          <div id="usage-indicator"></div>
-          <button type="button" id="open-drafts" class="ui-button ui-button-secondary">Drafts</button>
+        <div class="chat-header-spacer"></div>
+        <div class="overflow-menu" data-overflow-menu>
+          <button id="menu-toggle" type="button" class="menu-toggle" aria-label="Open chat controls" aria-expanded="false">…</button>
+          <div id="overflow-menu-panel" class="overflow-menu-panel hidden">
+            <div id="mode-dropdown"></div>
+            <div id="preset-dropdown"></div>
+            <div id="usage-indicator"></div>
+            <button type="button" id="toggle-deepthink" class="ui-button ui-button-secondary"></button>
+            <div class="menu-actions">
+              <button type="button" id="new-chat-btn" class="ui-button ui-button-secondary">New chat</button>
+              <button type="button" id="open-drafts" class="ui-button ui-button-secondary">Drafts</button>
+              <button type="button" id="settings-btn" class="ui-button ui-button-secondary">Settings</button>
+            </div>
+          </div>
         </div>
       </header>
       <div id="chat-container">
         <div id="messages"></div>
         <div id="input-area">
+          <button id="attach-btn" type="button" class="composer-icon" aria-label="Add attachment">＋</button>
           <input type="text" id="user-input" placeholder="Ask anything…" autofocus>
-          <button id="send-btn" class="ui-button ui-button-primary">↵</button>
+          <button id="send-btn" class="ui-button ui-button-primary" aria-label="Send">↑</button>
         </div>
       </div>
     </main>
@@ -129,7 +138,10 @@ const modeDropdownHost = document.querySelector('#mode-dropdown');
 const presetDropdownHost = document.querySelector('#preset-dropdown');
 const modalRoot = document.querySelector('#modal-root');
 const toolbar = document.querySelector('#selection-toolbar');
+const menuToggle = document.querySelector('#menu-toggle');
+const overflowMenuPanel = document.querySelector('#overflow-menu-panel');
 let openDropdown = null;
+let overflowMenuOpen = false;
 
 function escapeHtml(text) {
   return text
@@ -155,11 +167,7 @@ function renderDropdown(host, { id, label, selectedLabel, options }) {
   `;
 }
 
-function syncSidebarA11y() {
-  const sidebarToggle = document.querySelector('#sidebar-toggle');
-  const isOpen = layout.classList.contains('sidebar-open');
-  sidebarToggle.setAttribute('aria-expanded', String(isOpen));
-}
+function syncSidebarA11y() {}
 
 function compileMemory(maxChars = 1800) {
   const enabled = appState.global.memoryItems.filter((m) => m.enabled);
@@ -265,6 +273,7 @@ function updateUsage(promptText, completionText) {
   usage.lastUpdatedAt = now.toISOString();
   saveState();
   renderUsage();
+  renderDeepThinkToggle();
 }
 
 function buildSystemMessages(conv) {
@@ -273,7 +282,9 @@ function buildSystemMessages(conv) {
   const memoryLines = compileMemory();
   const pinnedLines = compiledPinnedContext();
   const instructions = [
-    'Respond in structured sections using headings: Summary, Details, Action Steps, Risks, Sources.',
+    'Give direct, natural responses unless the user asks for a specific format.',
+    'Use Markdown when useful, including fenced code blocks for code.',
+    appState.global.deepThink ? 'For difficult questions, spend extra time reasoning before answering. Optionally include a brief <thinking>...</thinking> block.' : 'Keep reasoning brief and answer quickly.',
     modePrompt(mode),
     presetPrompt(preset),
   ].join(' ');
@@ -369,7 +380,7 @@ async function sendMessage() {
   userInput.value = '';
   renderMessages();
 
-  const assistantMsg = { id: uid('msg'), role: 'assistant', content: '', structuredSections: [], editedSnippets: [], suggestions: [], createdAt: new Date().toISOString() };
+  const assistantMsg = { id: uid('msg'), role: 'assistant', content: '', editedSnippets: [], createdAt: new Date().toISOString() };
   conv.messages.push(assistantMsg);
   renderMessages();
 
@@ -393,8 +404,6 @@ async function sendMessage() {
       messageContainer.scrollTop = messageContainer.scrollHeight;
     }
     assistantMsg.content = full;
-    assistantMsg.structuredSections = parseStructuredSections(full).map((s) => ({ ...s, collapsedByDefault: sectionCollapsedDefault(s.kind, effectiveMode(conv), effectivePreset(conv)) }));
-    assistantMsg.suggestions = generateSuggestions(effectiveMode(conv), effectivePreset(conv), assistantMsg);
     conv.title = conv.messages.find((m) => m.role === 'user')?.content.slice(0, 32) || conv.title;
     updateUsage(payload.map((p) => p.content).join('\n'), full);
   } catch (error) {
@@ -406,6 +415,27 @@ async function sendMessage() {
 
 function renderMarkdown(element, markdown) {
   element.innerHTML = DOMPurify.sanitize(marked.parse(markdown || ''));
+}
+
+function parseThinkingBlocks(markdown = '') {
+  const blocks = [];
+  const cleaned = markdown.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, (_, thought) => {
+    if (thought?.trim()) blocks.push(thought.trim());
+    return '';
+  }).trim();
+  return { cleaned, blocks };
+}
+
+function renderAssistantContent(element, markdown) {
+  const { cleaned, blocks } = parseThinkingBlocks(markdown);
+  renderMarkdown(element, cleaned || markdown);
+  blocks.forEach((thought) => {
+    const details = document.createElement('details');
+    details.className = 'thinking-block';
+    details.innerHTML = `<summary>Thinking</summary><div class="thinking-content"></div>`;
+    renderMarkdown(details.querySelector('.thinking-content'), thought);
+    element.appendChild(details);
+  });
 }
 
 function copyText(text) {
@@ -421,17 +451,17 @@ function renderMessages() {
     wrap.dataset.messageId = m.id;
     const content = document.createElement('div');
     content.className = 'message-content';
-    if (m.role === 'assistant' && m.structuredSections?.length) {
-      content.innerHTML = m.structuredSections.map((s) => `<details ${s.collapsedByDefault ? '' : 'open'}><summary>${s.title}</summary><div>${DOMPurify.sanitize(marked.parse(s.content || ''))}</div></details>`).join('');
-    } else if (m.role === 'assistant') {
-      renderMarkdown(content, m.content);
+    if (m.role === 'assistant') {
+      renderAssistantContent(content, m.content);
     } else {
       content.textContent = m.content;
     }
 
     const actions = document.createElement('div');
     actions.className = 'message-actions';
-    actions.innerHTML = `<button data-save="${m.id}">Save this</button>${m.role === 'assistant' ? `<button data-edit="${m.id}">Edit</button><button data-copyfull="${m.id}">Copy full</button><button data-copysummary="${m.id}">Copy summary</button><button data-copyactions="${m.id}">Copy action steps</button><button data-copymd="${m.id}">Copy as Markdown</button>` : ''}`;
+    actions.innerHTML = m.role === 'assistant'
+      ? `<button data-copyfull="${m.id}">Copy</button><button data-save="${m.id}">Save</button>`
+      : '';
 
     wrap.append(content, actions);
 
@@ -444,14 +474,6 @@ function renderMessages() {
         wrap.appendChild(s);
       });
     }
-
-    if (m.role === 'assistant' && m.suggestions?.length) {
-      const chips = document.createElement('div');
-      chips.className = 'chips';
-      chips.innerHTML = m.suggestions.map((c) => `<button class="chip" data-chip="${m.id}" data-kind="${c.kind}" data-label="${c.label}">${c.label}</button>`).join('');
-      wrap.appendChild(chips);
-    }
-
     messageContainer.appendChild(wrap);
   });
 }
@@ -468,6 +490,12 @@ function renderMemory() {
 function renderPinned() {
   const host = document.querySelector('#pinned-section');
   host.innerHTML = `<h3>Pinned context</h3><button id="add-pinned">Add pinned context</button><button id="view-pinned-injected">View injected context</button>${appState.global.pinnedContexts.map((c) => `<div class="item-row"><input type="checkbox" data-pin-toggle="${c.id}" ${c.enabled ? 'checked' : ''}><span>${c.label}</span><button data-pin-edit="${c.id}">Edit</button><button data-pin-del="${c.id}">Delete</button></div>`).join('')}`;
+}
+
+function renderDeepThinkToggle() {
+  const button = document.querySelector('#toggle-deepthink');
+  if (!button) return;
+  button.textContent = `Deep think: ${appState.global.deepThink ? 'On' : 'Off'}`;
 }
 
 function renderSelectors() {
@@ -496,27 +524,6 @@ function handleGlobalClick(e) {
   if (t.matches('[data-save]')) {
     const msg = currentConversation().messages.find((m) => m.id === t.dataset.save);
     saveMessageToMemory(msg.id, msg.content);
-  }
-  if (t.matches('[data-edit]')) {
-    const msg = currentConversation().messages.find((m) => m.id === t.dataset.edit);
-    openModal({
-      title: 'Edit message text',
-      body: `<textarea id="edit-text">${msg.content}</textarea><div class="quick-actions">${['Improve', 'Shorten', 'Expand', 'Make professional', 'Explain', 'Turn into tasks'].map((a) => `<button type="button" data-edit-run="${a}" data-msg="${msg.id}">${a}</button>`).join('')}</div>`,
-    });
-  }
-  if (t.matches('[data-edit-run]')) {
-    const msg = currentConversation().messages.find((m) => m.id === t.dataset.msg);
-    const selected = document.querySelector('#edit-text').value;
-    runEditAction(t.dataset.editRun, selected, msg);
-    modalRoot.innerHTML = '';
-  }
-  if (t.matches('[data-chip]')) {
-    const msg = currentConversation().messages.find((m) => m.id === t.dataset.chip);
-    if (t.dataset.kind === 'edit') runEditAction(t.dataset.label, msg.content, msg);
-    else {
-      userInput.value = t.dataset.label;
-      sendMessage();
-    }
   }
   if (t.matches('#add-memory')) saveMessageToMemory(null, '');
   if (t.matches('#view-memory-injected')) openModal({ title: 'Injected memory', body: `<pre>${compileMemory().join('\n')}</pre>` });
@@ -564,6 +571,7 @@ function handleGlobalClick(e) {
   if (t.matches('#open-drafts')) {
     document.querySelector('#drafts-drawer').classList.add('open');
     renderDrafts();
+    closeOverflowMenu();
   }
   if (t.matches('#close-drafts')) document.querySelector('#drafts-drawer').classList.remove('open');
   if (t.matches('[data-snip-copy]')) {
@@ -597,21 +605,18 @@ function handleGlobalClick(e) {
   if (t.matches('[data-copyfull]')) {
     const m = currentConversation().messages.find((x) => x.id === t.dataset.copyfull); copyText(m.content);
   }
-  if (t.matches('[data-copysummary]')) {
-    const m = currentConversation().messages.find((x) => x.id === t.dataset.copysummary); copyText(m.structuredSections?.find((s) => s.kind === 'summary')?.content || '');
-  }
-  if (t.matches('[data-copyactions]')) {
-    const m = currentConversation().messages.find((x) => x.id === t.dataset.copyactions); copyText(m.structuredSections?.find((s) => s.kind === 'actionSteps')?.content || '');
-  }
-  if (t.matches('[data-copymd]')) {
-    const m = currentConversation().messages.find((x) => x.id === t.dataset.copymd); copyText((m.structuredSections || []).map((s) => `## ${s.title}\n${s.content}`).join('\n\n'));
-  }
   if (t.matches('#new-chat-btn')) {
     const convId = uid('conv');
     appState.conversations.unshift({ id: convId, title: 'New chat', mode: null, outputPreset: null, messages: [] });
     appState.currentConversationId = convId;
     saveState();
     renderAll();
+    closeOverflowMenu();
+  }
+  if (t.matches('#toggle-deepthink')) {
+    appState.global.deepThink = !appState.global.deepThink;
+    saveState();
+    renderDeepThinkToggle();
   }
   if (t.matches('#settings-btn')) {
     const u = appState.global.usage;
@@ -621,6 +626,7 @@ function handleGlobalClick(e) {
       appState.global.showUsage = document.querySelector('#usage-visible').checked;
       saveState(); renderUsage();
     } });
+    closeOverflowMenu();
   }
   if (t.matches('[data-dropdown-trigger]')) {
     const id = t.dataset.dropdownTrigger;
@@ -648,6 +654,12 @@ function handleGlobalClick(e) {
   }
 }
 
+function closeOverflowMenu() {
+  overflowMenuOpen = false;
+  overflowMenuPanel.classList.add('hidden');
+  menuToggle.setAttribute('aria-expanded', 'false');
+}
+
 document.addEventListener('click', handleGlobalClick);
 document.addEventListener('click', (e) => {
   if (!openDropdown) return;
@@ -659,15 +671,17 @@ document.addEventListener('click', (e) => {
   }
 });
 
+document.addEventListener('click', (e) => {
+  if (!overflowMenuOpen) return;
+  if (!e.target.closest('[data-overflow-menu]')) closeOverflowMenu();
+});
+
 sendBtn.addEventListener('click', sendMessage);
 userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-document.querySelector('#sidebar-toggle').addEventListener('click', () => {
-  layout.classList.toggle('sidebar-open');
-  syncSidebarA11y();
-});
-document.querySelector('#mobile-overlay').addEventListener('click', () => {
-  layout.classList.remove('sidebar-open');
-  syncSidebarA11y();
+menuToggle.addEventListener('click', () => {
+  overflowMenuOpen = !overflowMenuOpen;
+  overflowMenuPanel.classList.toggle('hidden', !overflowMenuOpen);
+  menuToggle.setAttribute('aria-expanded', String(overflowMenuOpen));
 });
 
 function showSelectionToolbar() {
@@ -705,8 +719,7 @@ function renderAll() {
   renderMemory();
   renderPinned();
   renderUsage();
+  renderDeepThinkToggle();
 }
 
-if (window.matchMedia('(max-width: 900px)').matches) layout.classList.remove('sidebar-open');
-syncSidebarA11y();
 renderAll();
