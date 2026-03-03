@@ -7,11 +7,11 @@ const STATE_VERSION = 2;
 // Model constants used by selectors and prompt builders.
 // Edit example: add a new mode like `review` in `MODES`, then add a matching label in
 // `modeLabels` and prompt text in `modePrompt()` so it appears in the UI and behaves consistently.
-const MODES = ['work', 'study', 'planning', 'creative'];
-const PRESETS = ['ultra concise', 'balanced', 'detailed', 'technical', 'for client'];
+const MODES = ['normal', 'study', 'planning', 'creative'];
+const PRESETS = ['concise', 'balanced', 'detailed', 'technical', 'professional'];
 const MEMORY_TYPES = ['preference', 'project', 'task', 'fact', 'note'];
 const MEMORY_PRIORITY = { preference: 1, project: 2, task: 3, fact: 4, note: 5 };
-const modeLabels = { work: 'Work', study: 'Study', planning: 'Planning', creative: 'Creative' };
+const modeLabels = { normal: 'Normal', study: 'Study', planning: 'Planning', creative: 'Creative' };
 
 // Generates short stable-ish client ids for conversations/messages.
 // Edit example: replace the date/random strategy with `crypto.randomUUID()` if you prefer
@@ -30,10 +30,10 @@ function defaultState() {
   return {
     version: STATE_VERSION,
     global: {
-      defaultMode: 'work',
-      outputPreset: 'balanced',
+      defaultMode: 'normal',
+      outputPreset: 'Balanced',
       showUsage: true,
-      deepThink: true,
+      deepThink: flase,
       usage: {
         monthlyLimitTokens: 150000,
         usedTokens: 0,
