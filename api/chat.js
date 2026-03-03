@@ -1,13 +1,19 @@
 import { createGateway } from "@ai-sdk/gateway";
 import { streamText } from "ai";
 
+// API runtime configuration for consistent streaming support on serverless Node.
+// Edit example: switch to edge only after verifying your AI SDK features are edge-compatible.
 export const config = { runtime: "nodejs" };
 
+// Normalizes env vars by trimming whitespace and accidental quote wrapping.
+// Edit example: add `.replace(/\r?\n/g, "")` if deployment tooling injects newline artifacts.
 function sanitizeEnv(value) {
   if (typeof value !== "string") return "";
   return value.trim().replace(/^['"]|['"]$/g, "");
 }
 
+// Creates framework-neutral JSON responses when running in Fetch-style runtimes.
+// Edit example: append CORS headers here if this endpoint is called cross-origin.
 function jsonResponse(status, payload) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -15,6 +21,8 @@ function jsonResponse(status, payload) {
   });
 }
 
+// Parses body payload for Node-style handlers where `req.json()` is unavailable.
+// Edit example: support URL-encoded forms by detecting content-type and decoding accordingly.
 function parseNodeBody(req) {
   if (req?.body && typeof req.body === "object") return req.body;
   if (typeof req?.body === "string" && req.body.length > 0) {
@@ -27,6 +35,8 @@ function parseNodeBody(req) {
   return null;
 }
 
+// Main chat streaming handler that validates input, calls the gateway model, and streams tokens.
+// Edit example: add per-request model overrides from `body.model` with a safe allowlist check.
 export default async function handler(req, res) {
   const isNodeRuntime = typeof res !== "undefined";
   const method = req?.method;

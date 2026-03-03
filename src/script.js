@@ -1,7 +1,11 @@
+// Lightweight demo chat UI bindings used by the simple script entrypoint.
+// Edit example: point `#chat-log` to another container if you embed this chat in a different shell.
 const chatLog = document.querySelector('#chat-log');
 const input = document.querySelector('#user-input');
 let history = []; // Chat history memory
 
+// Sends the user prompt to `/api/chat`, streams partial text, and updates local history.
+// Edit example: insert a typing indicator timeout before the fetch for slower network environments.
 async function handleChat() {
   const userText = input.value.trim();
   if (!userText) return;
@@ -42,6 +46,8 @@ async function handleChat() {
   }
 }
 
+// Renders one chat bubble and keeps the transcript scrolled to the latest message.
+// Edit example: add a timestamp span here if you want chronological metadata in each bubble.
 function appendMessage(role, text) {
   const div = document.createElement('div');
   div.className = `msg ${role}`;
