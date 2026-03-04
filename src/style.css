@@ -1,390 +1,138 @@
-/* Visual design tokens shared across the app.
-   Edit example: to introduce a softer dark theme, change --bg/--panel/--text-main
-   values here first, then tweak component-level overrides only if contrast needs refinement. */
 :root {
-  --bg: #ffffff;
-  --panel: #ffffff;
-  --panel-soft: #e7e7e7;
-  --border: #d7d7d7;
-  --text-main: #171717;
-  --text-muted: #707070;
-  --accent: #111111;
+  color-scheme: light;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  line-height: 1.4;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 body {
   margin: 0;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text-main);
-  font-family: Inter, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #f3f8ff 0%, #eef3f8 40%, #e8edf3 100%);
+  color: #132030;
 }
 
-#app,
-#layout,
-/* Main chat canvas layout.
-   Edit example: increase horizontal breathing room by changing `padding` to `24px 32px 0`
-   for desktop-sized screens while keeping mobile overrides in the media query below. */
-#chat-shell { width: 100%; height: 100vh; }
+.app {
+  width: min(900px, 100% - 2rem);
+  margin: 2rem auto;
+  padding: 1rem;
+  border: 1px solid #d4dde7;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  display: grid;
+  gap: 1rem;
+}
 
-#layout { display: block; }
-#sidebar,
-#mobile-overlay,
-#right-panel { display: none !important; }
+.app-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
 
-#chat-shell {
-  min-width: 0;
+.app-header p {
+  margin: 0.35rem 0 0;
+  color: #48607a;
+}
+
+.messages {
   display: flex;
   flex-direction: column;
-  padding: 18px 24px 0;
-}
-
-#chat-header {
-  min-height: 54px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-}
-
-.chat-header-spacer { flex: 1; }
-
-.overflow-menu { position: relative; }
-
-.menu-toggle {
-  width: 38px;
-  height: 38px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  font-size: 30px;
-  line-height: 1;
-  color: #5d5d5d;
-  cursor: pointer;
-}
-
-.overflow-menu-panel {
-  position: absolute;
-  top: 42px;
-  right: 0;
-  z-index: 24;
-  width: min(300px, 80vw);
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: #fff;
-  display: grid;
-  gap: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-}
-
-.menu-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-/* Reusable button style system for controls and actions.
-   Edit example: for a more pill aesthetic, raise `border-radius` to 999px and slightly
-   increase horizontal padding so buttons still feel balanced. */
-.ui-button {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-  color: var(--text-main);
-  cursor: pointer;
-  padding: 8px 10px;
-  font: inherit;
-}
-
-.ui-button:hover { background: #f7f7f7; }
-.ui-button-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.ui-button-primary:hover { background: #000; }
-
-.ui-dropdown { position: relative; }
-.ui-dropdown-trigger { display: inline-flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 34px; width: 100%; font-size: 13px; }
-.ui-dropdown-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  min-width: 220px;
-  max-height: 250px;
+  gap: 0.75rem;
+  min-height: 320px;
+  max-height: 62vh;
   overflow-y: auto;
-  padding: 6px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #fff;
+  padding: 0.25rem;
+}
+
+.message {
   display: grid;
-  gap: 4px;
-}
-
-.ui-dropdown-item {
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: #fff;
-  padding: 7px 8px;
-  cursor: pointer;
-}
-
-.ui-dropdown-item:hover,
-.ui-dropdown-item.active { background: #f3f3f3; border-color: var(--border); }
-
-#chat-container {
-  min-height: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Scrollable message timeline (core chat UI area).
-   Edit example: reduce `gap` from 20px to 14px for denser transcripts in research workflows. */
-#messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 0 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.message { line-height: 1.6; word-break: break-word; width: 100%; }
-.user {
-  align-self: flex-end;
-  width: fit-content;
-  max-width: min(760px, 88%);
-  margin-right: 16px;
-  border-radius: 26px;
-  background: #e1e1e1;
-  padding: 14px 22px;
-  font-size: 16px;
-}
-
-.assistant {
-  align-self: stretch;
-  padding: 0 28px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.assistant .message-content { font-size: 16px; line-height: 1.6; max-width: 900px; }
-.user .message-content { font-size: 16px; }
-
-.message-actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-.message-actions button,
-.chip,
-.item-row button,
-.snippet-actions button,
-.quick-actions button,
-.drawer-head button,
-.draft-row button,
-#copy-drafts-md {
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #646464;
-  cursor: pointer;
-  font-size: 13px;
-  padding: 4px 6px;
-}
-.message-actions button:hover,
-.chip:hover,
-.item-row button:hover,
-.snippet-actions button:hover,
-.quick-actions button:hover,
-.drawer-head button:hover,
-.draft-row button:hover,
-#copy-drafts-md:hover { background: rgba(0, 0, 0, 0.04); }
-
-.message-actions:empty { display: none; }
-
-.message-content pre {
-  margin: 10px 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #f7f7f8;
-  overflow-x: auto;
-}
-
-.message-content code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 0.92em;
-}
-
-.thinking-block {
-  margin-top: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fafafa;
-  padding: 8px 10px;
-}
-
-.thinking-block summary {
-  cursor: pointer;
-  color: #5e5e5e;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* Composer shell where users type/send prompts.
-   Edit example: if you add an extra tool button, update `grid-template-columns` to
-   `auto auto 1fr auto` so spacing stays aligned. */
-#input-area {
-  margin: 0 auto 14px;
-  width: min(1240px, calc(100% - 20px));
-  padding: 10px 14px;
-  border: 1px solid #cfcfcf;
-  border-radius: 999px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
-  align-items: center;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(12, 24, 40, 0.08);
-}
-
-.composer-icon {
-  width: 42px;
-  height: 42px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #121212;
-  font-size: 30px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-
-#user-input {
-  width: 100%;
-  border: 0;
-  border-radius: 999px;
-  padding: 10px 8px;
-  font: inherit;
-  font-size: 16px;
-  background: transparent;
-}
-
-#user-input::placeholder { color: #8a8a8a; }
-#user-input:focus { outline: none; }
-
-#send-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-  font-size: 16px;
-}
-
-.panel-section { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; }
-.panel-section:last-child { border-bottom: 0; margin-bottom: 0; }
-.panel-section h3 { margin: 0 0 8px; font-size: 14px; }
-.item-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-size: 12px; }
-.item-row span { flex: 1; color: #303846; }
-
-.chips { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
-.snippet-block,
-.draft-row { border: 1px solid var(--border); border-radius: 10px; padding: 8px; margin-top: 8px; }
-.snippet-actions,
-.quick-actions,
-.drawer-head,
-.draft-row > div { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
-.drawer-head { justify-content: space-between; align-items: center; margin-top: 0; }
-
-#selection-toolbar {
-  position: absolute;
-  z-index: 40;
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 10px;
-  background: #111827;
-}
-
-#selection-toolbar button {
-  border: 0;
-  border-radius: 7px;
-  background: #374151;
-  color: #fff;
-  cursor: pointer;
-  padding: 5px 8px;
-}
-
-.hidden { display: none !important; }
-
-/* Modal layer used for inline edit/save flows.
-   Edit example: lower backdrop opacity (e.g., 0.2) for a lighter feel, or increase modal
-   max width in `.modal` for forms that need more fields. */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(15, 23, 42, 0.35);
-}
-
-.modal {
-  width: min(600px, 94vw);
-  padding: 14px;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
   border-radius: 12px;
-  border: 1px solid var(--border);
-  background: #fff;
+  border: 1px solid transparent;
+}
+
+.message.user {
+  background: #dde8f5;
+  border-color: #c4d5e8;
+  margin-left: 8%;
+}
+
+.message.assistant {
+  background: #f6f8fb;
+  border-color: #dee5ed;
+  margin-right: 8%;
+}
+
+.message-role {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5a708a;
+}
+
+.message-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.composer {
   display: grid;
-  gap: 10px;
+  gap: 0.75rem;
 }
 
-.modal h3 { margin: 0; }
-.modal label { display: block; font-size: 13px; color: #3f4655; }
-.modal textarea,
-.modal input,
-.modal select {
+.composer textarea {
   width: 100%;
-  margin-top: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
+  resize: vertical;
+  border: 1px solid #c8d3df;
+  border-radius: 12px;
+  padding: 0.75rem;
   font: inherit;
+  color: inherit;
+  background: #ffffff;
 }
 
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
-
-.drawer {
-  position: fixed;
-  top: 0;
-  right: -440px;
-  z-index: 55;
-  width: min(420px, 92vw);
-  height: 100vh;
-  padding: 12px;
-  border-left: 1px solid var(--border);
-  background: #fff;
-  transition: right 0.2s ease;
-  overflow-y: auto;
+.composer textarea:focus {
+  outline: 2px solid #8fb3d9;
+  outline-offset: 1px;
 }
 
-.drawer.open { right: 0; }
+.composer button {
+  justify-self: end;
+  border: 0;
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: #1a5ea8;
+  cursor: pointer;
+}
 
-.usage small { font-size: 11px; color: var(--text-muted); }
-.usage .bar { width: 100%; height: 6px; background: #eef1f4; border-radius: 999px; overflow: hidden; }
-.usage .bar span { display: block; height: 100%; background: var(--accent); }
-.usage.warn .bar span { background: #d97706; }
-.usage.critical .bar span { background: #dc2626; }
+.composer button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-/* Mobile adaptations for compact screens.
-   Edit example: if text feels cramped on small phones, drop assistant font-size to 15px
-   only here so desktop readability remains unchanged. */
-@media (max-width: 900px) {
-  #chat-shell { padding: 8px 10px 0; }
-  .assistant { padding: 0 10px; }
-  .assistant .message-content { font-size: 16px; }
-  .user .message-content { font-size: 16px; }
-  #user-input { font-size: 16px; }
-  #send-btn { width: 44px; height: 44px; }
-  .menu-actions { grid-template-columns: 1fr; }
+@media (max-width: 640px) {
+  .app {
+    width: calc(100% - 1rem);
+    margin: 0.5rem auto;
+    border-radius: 12px;
+  }
+
+  .messages {
+    max-height: 58vh;
+  }
+
+  .message.user {
+    margin-left: 0;
+  }
+
+  .message.assistant {
+    margin-right: 0;
+  }
 }

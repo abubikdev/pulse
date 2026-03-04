@@ -2,16 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-    <title>Pulse</title>
+    <title>Pulse Chatbot</title>
   </head>
   <body>
-    <!-- Root mount node for the full Pulse UI rendered by `src/main.js`.
-         Edit example: wrap this in a page shell (header/footer) if embedding Pulse inside a larger site. -->
-    <div id="app"></div>
+    <main class="app">
+      <header class="app-header">
+        <h1>Pulse Chatbot</h1>
+        <p>Minimal chat UI backed by Vercel AI Gateway.</p>
+      </header>
+
+      <section id="messages" class="messages" aria-live="polite"></section>
+
+      <form id="composer" class="composer">
+        <textarea
+          id="prompt"
+          name="prompt"
+          rows="3"
+          placeholder="Ask something..."
+          required
+        ></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+    </main>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
