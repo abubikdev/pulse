@@ -29,7 +29,7 @@ function addMessage(role, content = "") {
 function setLoading(loading) {
   sendEl.disabled = loading;
   promptEl.disabled = loading;
-  sendEl.textContent = loading ? "Sending..." : "Send";
+  sendEl.innerHTML = loading ? "<img src='assets/arrow-up.svg' class='loading'>" : "<img src='assets/arrow-up.svg'>";
 }
 
 async function sendMessage(content) {
@@ -83,3 +83,39 @@ composerEl.addEventListener("submit", async (event) => {
   promptEl.value = "";
   await sendMessage(content);
 });
+
+// Auto-grow only when content would overflow the visible area
+const textarea = promptEl;
+
+// Cache the one-line height (includes padding + borders)
+let baseHeight = null;
+function computeBaseHeight() {
+  const cs = getComputedStyle(textarea);
+  const lineHeight = parseFloat(cs.lineHeight) || 0;
+  const paddingTop = parseFloat(cs.paddingTop) || 0;
+  const paddingBottom = parseFloat(cs.paddingBottom) || 0;
+  const borderTop = parseFloat(cs.borderTopWidth) || 0;
+  const borderBottom = parseFloat(cs.borderBottomWidth) || 0;
+
+  baseHeight = Math.ceil(lineHeight + paddingTop + paddingBottom + borderTop + borderBottom);
+  textarea.style.height = baseHeight + "px";
+}
+
+// Ensure we measure after CSS has applied
+requestAnimationFrame(computeBaseHeight);
+window.addEventListener("resize", computeBaseHeight);
+
+function autosize() {
+  if (baseHeight == null) computeBaseHeight();
+
+  // Reset to base so scrollHeight reflects the true needed height (also enables shrinking)
+  textarea.style.height = baseHeight + "px";
+
+  // Only grow if the content would overflow the current visible height
+  const needed = textarea.scrollHeight;
+  if (needed > textarea.clientHeight) {
+    textarea.style.height = needed + "px";
+  }
+}
+
+textarea.addEventListener("input", autosize);
